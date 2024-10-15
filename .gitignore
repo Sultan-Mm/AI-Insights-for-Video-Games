@@ -5,6 +5,7 @@ raw_data/
 ######################
 .DS_Store
 __MACOSX
+*.Identifier
 # Jupiter Notebook #
 .pytest_cache
 __pycache__
