@@ -1,0 +1,89 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: monospace;
+  background-color: #030303;
+}
+
+.section-backlight {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  position: fixed;
+}
+
+.backlight-box::after {
+  position: fixed;
+  content: "";
+  top: 6vw;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  height: 100%;
+  width: 100%;
+  margin: 0 ;
+  transform: scale(0.99);
+  filter: blur(5vw);
+  background: linear-gradient(270deg, #eaecec, #580303);
+  background-size: 200% 200%;
+  animation: animateGlow 10s ease infinite;
+}
+
+@keyframes animateGlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.backlight-box {
+  position: fixed;
+  width: 20vw;
+  height: 20vw;
+  line-height: 20vw;
+  text-align: center;
+  color: #f3f2f2;
+  background-color: #000000;
+  animation: textColor 10s ease infinite;
+}
+
+@keyframes textColor {
+  0% {
+    color: #eaecec;
+  }
+  50% {
+    color: #c20000;
+  }
+  100% {
+    color: #5e5e5e;
+  }
+}
+
+/* Navbar fix */
+.navbar {
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 10;
+  background: transparent; /* لضمان عدم وجود خلفية للـ navbar */
+}
+
+.navbar .nav-link, .navbar .navbar-brand {
+  color: #eaecec !important; /* لون الروابط داخل الـ navbar */
+}
