@@ -10,6 +10,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 import joblib
 import os
+from sklearn.impute import SimpleImputer
 file_path = os.path.abspath('data/GamesFinish.csv')
 print(file_path)
 # Load Dataset
@@ -100,9 +101,10 @@ df_games_enriched = pd.concat([df_games, X_tree.iloc[:,-1]], axis=1)
 
 # Popularity Score Calculation
 df_games_enriched['Popularity_score'] = (
-    0.3 * df_games_enriched['TotalReviews'] +
-    0.3 * df_games_enriched['RecommendationCount'] +
-    0.4 * df_games_enriched['Pred_Owners']
+    0.2 * df_games_enriched['TotalReviews'] +
+    0.2 * df_games_enriched['RecommendationCount'] +
+    0.2 * df_games_enriched['Pred_Owners'] +
+    0.3 * df_games_enriched['Sales']
 )
 
 df_games_enriched = df_games_enriched.reset_index(drop=True)
@@ -139,4 +141,14 @@ df_games_with_ranking = pd.read_csv(file_path2)
 df_games_with_ranking = df_games_with_ranking[['AppID','Budget_AA','Budget_AAA','Budget_Indie']]
 merged = pd.merge(df_games_with_ranking,df_games_enriched, how='inner', on='AppID')
 print(merged.columns,merged.shape)
-merged.to_csv('data/merged_df_games_with_ranking_df_games_enriched.csv')
+
+
+merged = merged.drop(columns=['Unnamed: 11', 'Unnamed: 20' ,'Unnamed: 21' ,'Unnamed: 23' ,'Unnamed: 25'])
+# Assuming 'merged' is your DataFrame
+imputer = SimpleImputer(strategy='most_frequent')
+
+# Fit the imputer and transform the DataFrame
+merged_imputed = pd.DataFrame(imputer.fit_transform(merged), columns=merged.columns)
+
+#merged_imputed = merged_imputed.apply(lambda x: x.fillna(x.mode()[0]), axis=0)
+merged_imputed.to_csv('data/merged_df_games_with_ranking_df_games_enriched.csv')
