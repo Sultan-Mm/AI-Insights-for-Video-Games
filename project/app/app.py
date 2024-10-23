@@ -351,15 +351,13 @@ import numpy as np
 import os
 
 # Set page title
-st.set_page_config(page_title="Game Remake Estimmater", page_icon="🎮")
+st.set_page_config(page_title="Game Remake Estimator", page_icon="🎮")
 
 # Add the main title and description
-st.markdown("<h1 style='text-align: center; color: #333333; font-family:Georgia;'>Game Remake Estimmater</h1>", unsafe_allow_html=True)
-st.markdown("""
-<p style='text-align: center; font-size: 18px; color: #4d4d4d; font-family:Georgia;'>
-This page provides the predicted remake popularity score for games, estimated using a Gradient Regressor. If a game has a high score, it indicates the game is very popular and may deserve a remake, tapping into both current trends and nostalgia. Explore the games below to see which ones are gaining traction!
-</p>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #333333; font-family:Georgia;'>Game Remake Estimator</h1>", unsafe_allow_html=True)
+st.markdown("""<p style='text-align: center; font-size: 18px; color: #4d4d4d; font-family:Georgia;'>
+This page provides the predicted potential remake score for games, estimated using a Gradient Boosting Regressor. If a game has a high score, it indicates the game is well known and may deserve a remake. Explore the games below to see which ones are gaining traction!
+</p>""", unsafe_allow_html=True)
 
 # Load dataset
 @st.cache_data
@@ -370,18 +368,14 @@ def load_data():
 
 df = load_data()
 df = df[df['QueryName'] != 'Counter-Strike: Condition Zero Deleted Scenes']
+
 # Rescale the popularity score from 100 to 0
 max_popularity = df['Popularity_score'].max()
 min_popularity = df['Popularity_score'].min()
 df['Rescaled_Popularity_Score'] = ((df['Popularity_score'] - min_popularity) / (max_popularity - min_popularity)) * 100
 
-# Filter columns for binary features, including the new ones
-binary_features = [
-    'Adventure', 'Casual',  'RPG', 'Action',
-    'Strategy', 'Simulation',  'Sports', 'Massively Multiplayer', 'Education',
-    'Violent', 'Design & Illustration', 'Animation & Modeling', 'Co-op', 'Cross-Platform Multiplayer',
-    'Family Sharing',  'In-App Purchases', 'Multi-player', 'VR Support'
-]
+# Filter columns for binary features
+binary_features = ['Adventure', 'Casual', 'RPG', 'Action', 'Strategy', 'Simulation', 'Sports', 'Massively Multiplayer', 'Education', 'Violent', 'Design & Illustration', 'Animation & Modeling', 'Co-op', 'Cross-Platform Multiplayer', 'Family Sharing', 'In-App Purchases', 'Multi-player', 'VR Support']
 
 # Sidebar for filters
 st.sidebar.header('🎮 Filter by Genre')
@@ -407,30 +401,28 @@ filtered_df_sorted = filtered_df.sort_values(by='Rescaled_Popularity_Score', asc
 selected_game_name = st.sidebar.selectbox('Select a game', filtered_df_sorted['QueryName'])
 
 # Display the filtered game list
-st.markdown("<h2 style='text-align: center; color: #333333; font-family:Georgia;'>Games Released in 2014 and Earlier </h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: #333333; font-family:Georgia;'>Games Released in 2014 and Earlier</h2>", unsafe_allow_html=True)
 
 # Display the filtered DataFrame without the index column
-st.markdown("""
-    <style>
-    .dataframe table {
-        margin: 20px auto;
-        border-collapse: collapse;
-    }
-    .dataframe th, .dataframe td {
-        padding: 10px 15px;
-    }
-    .css-1d391kg {
-        display: none;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("""<style>
+.dataframe table {
+    margin: 20px auto;
+    border-collapse: collapse;
+}
+.dataframe th, .dataframe td {
+    padding: 10px 15px;
+}
+.css-1d391kg {
+    display: none;
+}
+</style>""", unsafe_allow_html=True)
 
-st.dataframe(filtered_df[['QueryName', 'Rescaled_Popularity_Score', 'TotalReviews', 'Sales', 'Pred_Owners']].reset_index(drop=True))
+st.dataframe(filtered_df[['QueryName' ,'TotalReviews', 'Sales', 'Pred_Owners']].reset_index(drop=True))
 
 # Calculate popularity thresholds
 max_rescaled_popularity = df['Rescaled_Popularity_Score'].max()
 min_rescaled_popularity = df['Rescaled_Popularity_Score'].min()
-threshold_high = min_rescaled_popularity + (max_rescaled_popularity - min_rescaled_popularity) * 0.60
+threshold_high = min_rescaled_popularity + (max_rescaled_popularity - min_rescaled_popularity) * 0.70
 threshold_medium = min_rescaled_popularity + (max_rescaled_popularity - min_rescaled_popularity) * 0.30
 
 # Display information for the selected game
@@ -442,6 +434,14 @@ if not selected_game.empty:
     # Get rescaled popularity score
     rescaled_popularity_score = selected_game['Rescaled_Popularity_Score'].values[0]
 
+    # Adjust the popularity score based on the budget type
+    if selected_budget == 'Budget_AAA' and selected_game['Budget_AAA'].values[0] == 1:
+        rescaled_popularity_score = min(rescaled_popularity_score * 1.3, 100)  # Increase by 20% for AAA games, capped at 100
+    elif selected_budget == 'Budget_AA' and selected_game['Budget_AA'].values[0] == 1:
+        rescaled_popularity_score = min(rescaled_popularity_score * 1.7, 100)  # Increase by 10% for AA games, capped at 100
+    elif selected_budget == 'Budget_Indie' and selected_game['Budget_Indie'].values[0] == 1:
+        rescaled_popularity_score = min(rescaled_popularity_score * 4.0, 100)  # Decrease by 20% for Indie games, capped at 100
+
     # Determine popularity level based on rescaled score
     if rescaled_popularity_score >= threshold_high:
         popularity_label = 'High'
@@ -451,17 +451,12 @@ if not selected_game.empty:
         st.markdown("<h3 style='color: #FFBF00;'>⚖️ This game has moderate appeal and could benefit from a remake! ⚖️</h3>", unsafe_allow_html=True)
     else:
         popularity_label = 'Low'
-        st.markdown("<h3 style='color: #FF6347;'>💤 This game has a modest following, making a remake less likely to have a remake. 💤</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #FF6347;'>💤 This game has a modest following, making a remake less likely. 💤</h3>", unsafe_allow_html=True)
 
     # Display game information
-    st.markdown(f"""
-    <p style='font-size: 24px; font-weight: bold; color: #333333;'>
-        Estimated Percentage: {popularity_label} ({int(np.round(rescaled_popularity_score))}%)
-    </p>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<p style='font-size: 24px; font-weight: bold; color: #333333;'>Estimated Percentage: {popularity_label} ({int(np.round(rescaled_popularity_score))}%)</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='font-size: 22px;'><strong>Predicted Owners:</strong> {int(np.round(selected_game['Pred_Owners'].values[0]))}</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='font-size: 18px;'><strong>Release Date:</strong> {selected_game['Release date'].values[0]}</p>", unsafe_allow_html=True)
-    #st.markdown(f"<p style='font-size: 18px;'><strong>Predicted Owners:</strong> {int(np.round(selected_game['Pred_Owners'].values[0]))}</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='font-size: 18px;'><strong>Total Reviews:</strong> {int(np.round(selected_game['TotalReviews'].values[0]))}</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='font-size: 18px;'><strong>Average Playtime (Hours):</strong> {int(np.round(selected_game['avg_playtime'].values[0]))}</p>", unsafe_allow_html=True)
 
