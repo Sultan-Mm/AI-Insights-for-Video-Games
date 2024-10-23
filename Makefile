@@ -6,3 +6,6 @@ test_env_setup:
 test:
 
 	pytest tests/test.py::TestParams::test_MODEL_TARGET
+
+run_app:
+	streamlit run project/app/app.py
