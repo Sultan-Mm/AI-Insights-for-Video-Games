@@ -348,11 +348,13 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import webbrowser
 import os
 
 # Set page title
-st.set_page_config(page_title="Game Remake Estimator", page_icon="🎮")
 
+st.set_page_config(page_title="Game Remake Estimator", page_icon="🎮")
+st.link_button("Home Page","http://127.0.0.1:8000")
 # Add the main title and description
 st.markdown("<h1 style='text-align: center; color: #333333; font-family:Georgia;'>Game Remake Estimator</h1>", unsafe_allow_html=True)
 st.markdown("""<p style='text-align: center; font-size: 18px; color: #4d4d4d; font-family:Georgia;'>
@@ -417,7 +419,7 @@ st.markdown("""<style>
 }
 </style>""", unsafe_allow_html=True)
 
-st.dataframe(filtered_df[['QueryName' ,'TotalReviews', 'Sales', 'Pred_Owners']].reset_index(drop=True))
+st.dataframe(filtered_df[['QueryName', 'Publishers' ,'TotalReviews', 'Sales', 'Pred_Owners']].set_index('QueryName'))
 
 # Calculate popularity thresholds
 max_rescaled_popularity = df['Rescaled_Popularity_Score'].max()
@@ -425,9 +427,20 @@ min_rescaled_popularity = df['Rescaled_Popularity_Score'].min()
 threshold_high = min_rescaled_popularity + (max_rescaled_popularity - min_rescaled_popularity) * 0.70
 threshold_medium = min_rescaled_popularity + (max_rescaled_popularity - min_rescaled_popularity) * 0.30
 
+top_publishers = filtered_df.groupby('Publishers')['Pred_Owners'].sum()
+
+# Sort the values in descending order and select the top 10 publishers
+top_10_publishers = top_publishers.sort_values(ascending=False).head(10)
+
+# Display the top 10 publishers and the bar chart
+st.write(f"Top 10 Publishers for {selected_budget} Budget:")
+st.write(top_10_publishers)
+st.bar_chart(top_10_publishers)
+
 # Display information for the selected game
 st.markdown(f"<h2 style='color: #4d4d4d; font-family:Georgia;'>Game Details: <em>{selected_game_name}</em></h2>", unsafe_allow_html=True)
 selected_game = df[df['QueryName'] == selected_game_name]
+
 
 # Check if selected_game is empty
 if not selected_game.empty:
@@ -445,13 +458,13 @@ if not selected_game.empty:
     # Determine popularity level based on rescaled score
     if rescaled_popularity_score >= threshold_high:
         popularity_label = 'High'
-        st.markdown("<h3 style='color: #00FF00;'>🚀 This game is highly regarded and is ideal for a remake! 🚀</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #00FF00;'>🚀 Ideal for a remake! 🚀</h3>", unsafe_allow_html=True)
     elif rescaled_popularity_score >= threshold_medium:
         popularity_label = 'Medium'
-        st.markdown("<h3 style='color: #FFBF00;'>⚖️ This game has moderate appeal and could benefit from a remake! ⚖️</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #FFBF00;'>⚖️ Could benefit from a remake! ⚖️</h3>", unsafe_allow_html=True)
     else:
         popularity_label = 'Low'
-        st.markdown("<h3 style='color: #FF6347;'>💤 This game has a modest following, making a remake less likely. 💤</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #FF6347;'>💤 A new sequence may be a better option than a remake. 💤</h3>", unsafe_allow_html=True)
 
     # Display game information
     st.markdown(f"<p style='font-size: 24px; font-weight: bold; color: #333333;'>Estimated Percentage: {popularity_label} ({int(np.round(rescaled_popularity_score))}%)</p>", unsafe_allow_html=True)
@@ -473,3 +486,67 @@ else:
 # Footer with a sleek message
 st.markdown("<hr style='border: 1px solid #D3D3D3;'>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #333333; font-family:Georgia;'>Crafted with precision by passionate Data Scientists</p>", unsafe_allow_html=True)
+
+
+
+# Set page title
+#st.set_page_config(page_title="User Input Form", page_icon="📝")
+
+# Create the form
+st.title("Let us know what you think")
+df_games = load_data()
+# Form elements
+file_path = "data/user/user_input_data.csv"
+# Form elements
+with st.form(key="user_input_form"):
+    # Text input fields
+    name = st.text_input("Enter your name:")
+    email = st.text_input("Enter your email:")
+    favorite_game = st.selectbox('Select your favorite game', df_games['QueryName'])
+    feedback = st.text_area("Enter your feedback:")
+
+    # Submit button
+    submit_button = st.form_submit_button("Submit")
+
+# Check if the form is submitted and validate required fields
+if submit_button:
+    # Validate the required fields
+    if not name or not feedback:
+        st.error("Name and Feedback are required fields!")
+    else:
+        # Check if the CSV file exists
+        if os.path.exists(file_path):
+            # Read the existing CSV file
+            df_user = pd.read_csv(file_path)
+
+            # Check for duplicate entries
+            is_duplicate = df_user[(df_user["Name"] == name) & (df_user["Feedback"] == feedback)].any().any()
+            if is_duplicate:
+                st.warning("This feedback has already been submitted.")
+            else:
+                # Create a new entry as a dictionary
+                new_entry = {
+                    "Name": name,
+                    "Email": email,
+                    "Favorite Game": favorite_game,
+                    "Feedback": feedback
+                }
+                # Append the new entry to the DataFrame
+                df_user = pd.concat([df_user, pd.DataFrame([new_entry])], ignore_index=True)
+                # Save the updated DataFrame back to CSV
+                df_user.to_csv(file_path, index=False)
+                st.success("Your submission has been saved!")
+        else:
+            # If the file does not exist, create a new DataFrame and save it as a CSV
+            new_entry = {
+                "Name": name,
+                "Email": email,
+                "Favorite Game": favorite_game,
+                "Feedback": feedback
+            }
+            df_user = pd.DataFrame([new_entry])
+            df_user.to_csv(file_path, index=False)
+            st.success("Your submission has been saved!")
+
+        # Optionally, display the saved data
+        st.write(df_user)
