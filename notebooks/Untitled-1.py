@@ -11,14 +11,48 @@ df_games = df_games.iloc[:, 1:]
 df_games.head()
 
 # %%
-df_games.columns
+df_Player = pd.read_csv('../data/avg_play.csv')
+df_games = pd.read_csv('games_c4.csv')
+df_games = pd.merge(df_games ,df_Player ,how='left',on='AppID')
+df_games
+
+# %% [markdown]
+# Sid Meier's Civilization IV                      2
+# Sid Meier's Civilization IV: Warlords            2
+# Ultimate Arena                                   2
+# Spellbind                                        2
+# Taxi                                             2
+# New York Bus Simulator                           2
+# Streamline                                       2
+# Dark Matter                                      2
+# Snapshot                                         2
+# Monday Night Combat                              2
+# Darksiders                                       2
+# Call of Duty: Modern Warfare 3                   2
+# Total War: SHOGUN 2                              2
+# Alpha Protocol                                   2
+# Arma 2                                           2
+# Fallout: New Vegas                               2
+# Sid Meier's Civilization IV: Colonization        2
+# Sid Meier's Civilization V                       2
+# Sid Meier's Civilization IV: Beyond the Sword    2
+# Rise                                             2
+# Name: QueryName, dtype: int64
 
 # %%
+df_games = df_games.sort_values(
+    ['SteamSpyOwners', 'RecommendationCount'], ascending=False).drop_duplicates(subset='QueryName', keep='first'
+)
+
+df_games = df_games[df_games['Sales'] > 0]
+
+df_games.to_csv("games_c5.csv", index=False)
+
 df_games= df_games.drop(columns=[
-    'AppID', 'QueryName',
     'Unnamed: 11', 'Unnamed: 20', 'Unnamed: 21', 'Unnamed: 23', 'Unnamed: 25',
+    'AppID', 'QueryName',
     'Developers', 'developers',  # Developer related columns
-    'Publishers', 'publishers',  # Publisher related columns
+    'publishers',  # Publisher related columns
     'PriceCurrency',  # Price related
     'Recommendations',  # Reviews and ratings
     'DLC count',  # Redundant DLC count
@@ -34,15 +68,6 @@ df_games= df_games.drop(columns=[
     'num_reviews_total'
 ])
 
-# %%
-df_games.columns
-
-# %%
-len(df_games)
-
-# %%
-df_games.iloc[:,20:].info()
-
 
 # %% [markdown]
 # # Data Cleaning
@@ -51,9 +76,15 @@ df_games.iloc[:,20:].info()
 # ## Zero replacement
 
 # %%
-zero_columns = ['Achievements', 'Price', 'dlc_count'] + list(df_games.iloc[:, 10:32].columns)
+zero_columns = ['Achievements', 'Price', 'dlc_count', 'VR Support'] + list(df_games.iloc[:, 10:32].columns)
 
 df_games[zero_columns] = df_games[zero_columns].fillna(0)
+
+# %% [markdown]
+# ## Not found
+
+# %%
+df_games['Publishers'] = df_games['Publishers'].fillna('Not Found')
 
 # %% [markdown]
 # ## Most Frequent
@@ -86,11 +117,9 @@ df_games.drop(columns=['Year', 'Month'], inplace=True)
 
 # %%
 imp_mean = SimpleImputer(strategy='mean')
-mean_feats = ['age_ranking', 'rating', 'ReviewScore']
+mean_feats = ['age_ranking', 'rating', 'ReviewScore', 'avg_playtime']
 
 df_games[mean_feats] = imp_mean.fit_transform(df_games[mean_feats])
-
-df_games.head()
 
 # %% [markdown]
 # ## Median
@@ -138,9 +167,6 @@ df_games.drop(columns=['positive', 'negative'], inplace=True)
 #
 # ReviewScore -> average and scaler
 
-# %%
-df_games.info()
-
 # %% [markdown]
 # ## One Hot Encoder
 
@@ -161,34 +187,116 @@ df_games = pd.concat([df_games, encoded_df], axis=1)
 df_games.rename(columns={'PurchaseAvail_True':'PurchaseAvail', 'CategorySinglePlayer_True':'CategorySinglePlayer'},
                 inplace=True)
 
+# %%
+dd = pd.read_csv('../data/dd.csv')
+
+
+# %% [markdown]
+# add budget category
+
+# %%
+# Function to calculate points based on game features
+def calculate_points(row):
+    points = 0
+    AAA_List_P = dd['Publishers'][0:47].to_list()
+    AA_List_P = dd['Publishers'][47:300].to_list()
+    indie_List_P = dd['Publishers'][300:].to_list()
+
+    # ckeck if the game's publisher is in the lists
+    if row['Publishers']  in AAA_List_P:
+        points += 15
+    elif row['Publishers'] in AA_List_P:
+        points += 9
+    else:
+        points += 1
+    # Price points
+    if row['Price'] >= 30.00:
+        points += 5
+    elif 20 <= row['Price'] < 30.00:
+        points += 3
+    else:
+        points += 1
+    # TotalReviews points
+    if row['TotalReviews'] > 30000:
+        points += 5
+    elif 5000 <= row['TotalReviews'] <= 30000:
+        points += 3
+    else:
+        points += 1
+    # DeveloperCount points
+    if row['DeveloperCount'] >= 2:
+        points += 3
+    elif row['DeveloperCount'] == 1:
+        points += 2
+    else:
+        points += 1
+    # Achievements points
+    if row['Achievements'] > 20:
+        points += 3
+    else:
+        points += 1
+    # avg_playtime points
+    if row['avg_playtime'] > 1000:
+        points += 3
+    elif 100 <= row['avg_playtime'] <= 1000:
+        points += 2
+    else:
+        points += 1
+    return points
+# Apply the function to calculate points for each game
+df_games['TotalPoints'] = df_games.apply(calculate_points, axis=1)
+# Define thresholds for BudgetCategory based on points
+def categorize_by_points(row):
+    if row['TotalPoints'] >= 19:
+        return 'AAA'
+    elif 12 <= row['TotalPoints'] < 19:
+        return 'AA'
+    else:
+        return 'Indie'
+# Apply the categorization
+df_games['BudgetCategory'] = df_games.apply(categorize_by_points, axis=1)
+
+# delete Publishers
+df_games.drop(columns='Publishers', inplace=True)
+
+# %%
+# One-hot encoding the 'BudgetCategory' column
+df_games = pd.get_dummies(df_games, columns=['BudgetCategory'], prefix='Budget')
+
+# This will create three new columns: 'Budget_Indie', 'Budget_AA', and 'Budget_AAA',
+# with binary values indicating the presence of each category
+
+
+# %%
+df_games.to_csv('GamesFinish_woScaling.csv', index=False)
+
 # %% [markdown]
 # ## Scaler
 
 # %%
-# Price
-# dlc_count
-# balance_pos_neg
-# rating
-# TotalReviews
-# ReviewScore
+#    'SteamSpyPlayersEstimate',
 
 
+# %%
 
+
+# %%
 scaling_feat = [
     'DeveloperCount',
     'RecommendationCount',
     'PublisherCount',
-    'SteamSpyOwners',
-    'SteamSpyPlayersEstimate',
     'Achievements',
+    'SteamSpyPlayersEstimate',
     'Price',
     'dlc_count',
     'balance_pos_neg',
     'rating',
     'TotalReviews',
-    'ReviewScore']
+    'ReviewScore',
+    'avg_playtime',
+    'Sales']
 
-fig, axs = plt.subplots(4, 3, figsize=(15, 10))
+fig, axs = plt.subplots(5, 3, figsize=(15, 10))
 
 axes = axs.flatten()
 
@@ -209,13 +317,14 @@ df_games[scaling_feat].describe()
 rob_feat = ['DeveloperCount',
     'RecommendationCount',
     'PublisherCount',
-    'SteamSpyOwners',
     'SteamSpyPlayersEstimate',
     'Achievements',
     'Price',
     'dlc_count',
     'balance_pos_neg',
-    'TotalReviews']
+    'TotalReviews',
+    'Sales',
+    'avg_playtime']
 
 std_feat = ['rating', 'ReviewScore']
 
@@ -226,66 +335,9 @@ std = StandardScaler()
 df_games[rob_feat] = rob.fit_transform(df_games[rob_feat])
 df_games[std_feat] = std.fit_transform(df_games[std_feat])
 
-# %%
-df_games.columns
+# %% [markdown]
+#  14  Sales                       10849 non-null  float64
+#  15  avg_playtime
 
 # %%
-#df_games[['num_reviews_total', 'TotalReviews']]
-
-# %%
-df_games
-
-# %%
-from sklearn.preprocessing import MinMaxScaler
-
-
-# Step 3: Scaling for 'positive' and 'negative'
-scaler = MinMaxScaler()
-df_games[['positive', 'negative']] = scaler.fit_transform(df_games[['positive', 'negative']])
-
-# Step 4: Fill missing values for 'rating', 'TotalReviews', and 'ReviewScore', then apply scaling
-df_games['rating'] = df_games['rating'].fillna(df_games['rating'].mean())
-df_games['TotalReviews'] = df_games['TotalReviews'].fillna(df_games['TotalReviews'].median())
-df_games['ReviewScore'] = df_games['ReviewScore'].fillna(df_games['ReviewScore'].mean())
-
-# Scaling for rating, TotalReviews, and ReviewScore
-df_games[['rating', 'TotalReviews', 'ReviewScore']] = scaler.fit_transform(df_games[['rating', 'TotalReviews', 'ReviewScore']])
-
-# Display a summary of the updated dataframe to confirm changes
-df_games[['positive', 'negative', 'rating', 'TotalReviews', 'ReviewScore']].head()
-
-
-# %%
-df_games.iloc[:,:].info()
-
-# %%
-df_games.columns
-
-# %%
-#df_games.to_csv("dfGames.csv")
-
-# %%
-temp_df_games= df_games.copy()
-
-# %%
-df_bool = temp_df_games[['Adventure','Casual','Indie','RPG','Free To Play','Action','Strategy','Simulation',
-    'Racing','Sports','Massively Multiplayer','Education','Violent','Design & Illustration',
-    'Animation & Modeling','Co-op','Cross-Platform Multiplayer','Family Sharing','HDR available',
-    'In-App Purchases','Multi-player','VR Support']]
-to_cinv = df_bool.columns.to_list()
-df_bool = temp_df_games[to_cinv].astype(bool)
-temp_df_games[to_cinv] = df_bool
-
-# %%
-temp_df_games.info()
-
-# %%
-#df_games.to_csv("games_newest2.csv")
-
-# %%
-
-
-# %%
-
-
-# %%
+df_games.to_csv("GamesFinish.csv", index=False)
