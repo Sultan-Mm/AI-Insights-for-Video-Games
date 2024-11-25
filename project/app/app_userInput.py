@@ -23,6 +23,13 @@ with st.form(key="user_input_form"):
     name = st.text_input("Enter your name:")
     email = st.text_input("Enter your email:")
     favorite_game = st.selectbox('Select your favorite game', df_games['QueryName'])
+    #favorite_game = st.selectbox('Select your favorite game', options=df_games['QueryName'])
+    custom_game = st.text_input("Or type a new game name if it's not listed:")
+
+# Determine the final input
+    final_game = custom_game if custom_game.strip() else favorite_game
+
+    st.write(f"Your selected game: {final_game}")
     feedback = st.text_area("Enter your feedback:")
 
     # Submit button
@@ -48,7 +55,7 @@ if submit_button:
                 new_entry = {
                     "Name": name,
                     "Email": email,
-                    "Favorite Game": favorite_game,
+                    "Favorite Game": final_game,
                     "Feedback": feedback
                 }
                 # Append the new entry to the DataFrame
@@ -61,7 +68,7 @@ if submit_button:
             new_entry = {
                 "Name": name,
                 "Email": email,
-                "Favorite Game": favorite_game,
+                "Favorite Game": final_game,
                 "Feedback": feedback
             }
             df_user = pd.DataFrame([new_entry])

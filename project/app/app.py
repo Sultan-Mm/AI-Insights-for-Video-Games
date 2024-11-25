@@ -350,6 +350,7 @@ import pandas as pd
 import numpy as np
 import webbrowser
 import os
+import streamlit.components.v1 as components
 
 # Set page title
 
@@ -491,62 +492,6 @@ st.markdown("<p style='text-align: center; color: #333333; font-family:Georgia;'
 
 # Set page title
 #st.set_page_config(page_title="User Input Form", page_icon="📝")
-
-# Create the form
-st.title("Let us know what you think")
-df_games = load_data()
-# Form elements
-file_path = "data/user/user_input_data.csv"
-# Form elements
-with st.form(key="user_input_form"):
-    # Text input fields
-    name = st.text_input("Enter your name:")
-    email = st.text_input("Enter your email:")
-    favorite_game = st.selectbox('Select your favorite game', df_games['QueryName'])
-    feedback = st.text_area("Enter your feedback:")
-
-    # Submit button
-    submit_button = st.form_submit_button("Submit")
-
-# Check if the form is submitted and validate required fields
-if submit_button:
-    # Validate the required fields
-    if not name or not feedback:
-        st.error("Name and Feedback are required fields!")
-    else:
-        # Check if the CSV file exists
-        if os.path.exists(file_path):
-            # Read the existing CSV file
-            df_user = pd.read_csv(file_path)
-
-            # Check for duplicate entries
-            is_duplicate = df_user[(df_user["Name"] == name) & (df_user["Feedback"] == feedback)].any().any()
-            if is_duplicate:
-                st.warning("This feedback has already been submitted.")
-            else:
-                # Create a new entry as a dictionary
-                new_entry = {
-                    "Name": name,
-                    "Email": email,
-                    "Favorite Game": favorite_game,
-                    "Feedback": feedback
-                }
-                # Append the new entry to the DataFrame
-                df_user = pd.concat([df_user, pd.DataFrame([new_entry])], ignore_index=True)
-                # Save the updated DataFrame back to CSV
-                df_user.to_csv(file_path, index=False)
-                st.success("Your submission has been saved!")
-        else:
-            # If the file does not exist, create a new DataFrame and save it as a CSV
-            new_entry = {
-                "Name": name,
-                "Email": email,
-                "Favorite Game": favorite_game,
-                "Feedback": feedback
-            }
-            df_user = pd.DataFrame([new_entry])
-            df_user.to_csv(file_path, index=False)
-            st.success("Your submission has been saved!")
-
-        # Optionally, display the saved data
-        st.write(df_user)
+components.html("""<iframe src="http://localhost:8502"
+                width="600" height="1000"
+                frameborder="0"></iframe>""", height=1000)
